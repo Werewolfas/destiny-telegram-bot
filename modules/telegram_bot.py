@@ -15,29 +15,26 @@ class TelegramBot:
 
         self.updater = Updater(self.config['Telegram']['Key'])
 
-        self.updater.dispatcher.add_handler(CommandHandler('nightfall', self.nightfall))
+        self.updater.dispatcher.add_handler(CommandHandler('weekly', self.weekly))
         self.updater.dispatcher.add_handler(CommandHandler('rewards', self.clan_rewards))
         self.updater.dispatcher.add_handler(CommandHandler('help', self.help))
 
         self.updater.start_polling()
         self.updater.idle()
 
-    def nightfall(self, bot, update):
-        nightfall = self.destiny.get_nightfall()
-        text = '*{}* \n{} \n*Модификаторы:* \n  — {}. {}\n  — {}. {}\n[\u200B]({})'.format(
-                             nightfall['name'],
-                             nightfall['description'],
-                             nightfall['mods'][0]['name'],
-                             nightfall['mods'][0]['description'],
-                             nightfall['mods'][1]['name'],
-                             nightfall['mods'][1]['description'],
-                             nightfall['screen'])
+    def weekly(self, bot, update):
+        weekly = self.destiny.get_nightfall()
+        text = '*{}*\n\n'.format(weekly['public_event'])
+        text = '{}*{}* \n{} \n*Модификаторы:* \n'.format(text, weekly['name'], weekly['description'])
+        for mod in weekly['mods']:
+            text = '{} – {}. {}\n'.format(text, mod['name'], mod['description'])
+        text = '{}\n[\u200B]({})'.format(text, weekly['screen'])
         bot.send_message(chat_id=update.message.chat_id,
                          text=text,
                          parse_mode=ParseMode.MARKDOWN)
 
     def clan_rewards(self, bot, update):
-        rewards = self.destiny.get_clan_weekly_reward_state()
+        rewards = self.destiny.get_clan_weekly_reward_state(self.config['Bungie']['ClanId'])
         text = ''
         for category in rewards:
             text = '{}<b>{}</b>\n'.format(text, category['name'])
@@ -54,7 +51,7 @@ class TelegramBot:
 
     def help(self, bot, update):
         text = '<b>/rewards</b> - информация о закрытых еженедельных клановых активностях\n' \
-               '<b>/nightfall</b> - информация о сумеречном налете на этой неделе\n'
+               '<b>/weekly</b> - информация о недельных заданиях\n'
         bot.send_message(chat_id=update.message.chat_id,
                          text=text,
                          parse_mode=ParseMode.HTML)

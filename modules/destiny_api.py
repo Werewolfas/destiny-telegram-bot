@@ -10,23 +10,27 @@ class DestinyApi:
         self.destiny = pysyncdest.Pysyncdest(self.key)
 
     def get_nightfall(self):
-        activites = self.destiny.api.get_public_milestones()
-        nightfall = {}
-        for quest in activites['Response']['2171429505']['availableQuests']:
+        activities = self.destiny.api.get_public_milestones()['Response']
+        milestones = {}
+        milestones['public_event'] = \
+            self.destiny.decode_hash(activities['463010297']['availableQuests'][0]['questItemHash'],
+                                     'DestinyInventoryItemDefinition',
+                                     self.lang)['displayProperties']['name']
+        for quest in activities['2171429505']['availableQuests']:
             nightfall_info = self.destiny.decode_hash(quest['activity']['activityHash'], 'DestinyActivityDefinition',
                                                  self.lang)
-            nightfall['name'] = nightfall_info['displayProperties']['name']
-            nightfall['description'] = nightfall_info['displayProperties']['description']
-            nightfall['screen'] = self.__url + nightfall_info['pgcrImage']
-            nightfall['mods'] = []
+            milestones['name'] = nightfall_info['displayProperties']['name']
+            milestones['description'] = nightfall_info['displayProperties']['description']
+            milestones['screen'] = self.__url + nightfall_info['pgcrImage']
+            milestones['mods'] = []
             for mods in quest['activity']['modifierHashes']:
                 modifier = self.destiny.decode_hash(mods, 'DestinyActivityModifierDefinition', self.lang)
-                nightfall['mods'].append({'name': modifier['displayProperties']['name'],
+                milestones['mods'].append({'name': modifier['displayProperties']['name'],
                                           'description': modifier['displayProperties']['description']})
-        return nightfall
+        return milestones
 
-    def get_clan_weekly_reward_state(self):
-        rewards = self.destiny.api.get_clan_weekly_reward_state(2031167)['Response']
+    def get_clan_weekly_reward_state(self, clan_id):
+        rewards = self.destiny.api.get_clan_weekly_reward_state(clan_id)['Response']
         definitions = self.destiny.api.get_milestone_definitions(rewards['milestoneHash'])['Response']['rewards']
         rewards_info = []
         for reward in rewards['rewards']:
