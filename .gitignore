@@ -1,0 +1,6 @@
+
+modules/__pycache__/
+
+*.content
+
+config\.ini

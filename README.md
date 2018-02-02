@@ -1,1 +1,1 @@
-destiny-telegram-bot
+destiny
