@@ -29,6 +29,30 @@ class DestinyApi:
                                           'description': modifier['displayProperties']['description']})
         return milestones
 
+    def get_trials_of_nine(self):
+        activities = self.destiny.api.get_public_milestones()['Response']
+        trials = {}
+        try:
+            activity = activities['3551755444']['availableQuests'][0]
+            trials['error'] = 0
+            trials['name'] = self.destiny.decode_hash(activity['questItemHash'],
+                                                      'DestinyInventoryItemDefinition',
+                                                      self.lang)['displayProperties']['name']
+            map_info = self.destiny.decode_hash(activity['activity']['activityHash'],
+                                                'DestinyActivityDefinition',
+                                                self.lang)
+            trials['map_name'] = map_info['displayProperties']['name']
+            trials['map_description'] = map_info['displayProperties']['description']
+            trials['map_screen'] = self.__url + map_info['pgcrImage']
+            trials['mode'] = str.replace(self.destiny.decode_hash(activity['activity']['activityModeHash'],
+                                                                  'DestinyActivityModeDefinition',
+                                                                  self.lang)
+                                         ['displayProperties']['name'],
+                                         'Испытания Девяти: ', '')
+        except KeyError:
+            trials['error'] = 1
+        return trials
+
     def get_clan_weekly_reward_state(self, clan_id):
         rewards = self.destiny.api.get_clan_weekly_reward_state(clan_id)['Response']
         definitions = self.destiny.api.get_milestone_definitions(rewards['milestoneHash'])['Response']['rewards']
