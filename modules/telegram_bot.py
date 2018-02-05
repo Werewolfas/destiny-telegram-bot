@@ -3,6 +3,7 @@ from telegram.ext import Updater, CommandHandler
 from telegram import ParseMode
 from emoji import emojize
 from modules.destiny_api import DestinyApi
+from modules.translate import Translate
 import configparser
 
 
@@ -11,6 +12,7 @@ class TelegramBot:
     def __init__(self):
         self.config = configparser.ConfigParser()
         self.config.read("config.ini")
+        self.translations = Translate()
         self.destiny = DestinyApi(self.config['Bungie']['Key'], self.config['Bungie']['Lang'])
 
         self.updater = Updater(self.config['Telegram']['Key'])
@@ -38,7 +40,7 @@ class TelegramBot:
         rewards = self.destiny.get_clan_weekly_reward_state(self.config['Bungie']['ClanId'])
         text = ''
         for category in rewards:
-            text = '{}<b>{}</b>\n'.format(text, category['name'])
+            text = '{}<b>{}</b>\n'.format(text, self.translations.make_translation(category['name']))
             sorted_reward = sorted(category['reward'], key=lambda k: k['name'])
             for reward in sorted_reward:
                 if reward['earned']:
@@ -46,7 +48,7 @@ class TelegramBot:
                 else:
                     earned = ':x:'
                 name = str.replace(reward['name'], ' - Last Week', '')
-                text = '{}  - {}: {}\n'.format(text, name, earned)
+                text = '{}  - {}: {}\n'.format(text, self.translations.make_translation(name), earned)
             text = text + '\n'
 
         bot.send_message(chat_id=update.message.chat_id,
@@ -62,7 +64,7 @@ class TelegramBot:
             text = '{} Режим: {}\n'.format(text, trials['mode'])
             text = '{}[\u200B]({})'.format(text, trials['map_screen'])
         else:
-             text = 'Данных о событии нет'
+            text = 'Данных о событии нет'
         bot.send_message(chat_id=update.message.chat_id,
                          text=text,
                          parse_mode=ParseMode.MARKDOWN)
