@@ -1,2 +1,4 @@
+requests
 emoji
 python-telegram-bot
+PyMySQL

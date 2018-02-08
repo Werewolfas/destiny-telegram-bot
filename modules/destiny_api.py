@@ -3,11 +3,10 @@ import pysyncdest
 
 class DestinyApi:
 
-    def __init__(self, key, lang):
-        self.key = key
-        self.lang = lang
+    def __init__(self, config):
+        self.lang = config['Lang']
         self.__url = 'https://www.bungie.net'
-        self.destiny = pysyncdest.Pysyncdest(self.key)
+        self.destiny = pysyncdest.Pysyncdest(config['Key'], config['ClientId'], config['ClientSecret'])
 
     def get_nightfall(self):
         activities = self.destiny.api.get_public_milestones()['Response']
@@ -70,9 +69,54 @@ class DestinyApi:
             rewards_info.append(info)
         return rewards_info
 
+    def get_token(self, refresh_token):
+        return self.destiny.oauth.refresh_token(refresh_token)
 
+    def get_xur_items(self, token):
+        vendor = '2190858386'
+        text = self.destiny.api.get_vendor(token, 2, 4611686018446750060, 2305843009262034932, vendor, ['402'])
+        items = list(text['Response']['sales']['data'].values())
+        xur_items = {}
+        xur_items['error'] = 0
+        xur_items['store'] = []
+        xur_items['icons'] = []
+        for item in items:
+            store_item = {}
+            item_info = self.destiny.decode_hash(item['itemHash'], 'DestinyInventoryItemDefinition', self.lang)
+            store_item['name'] = item_info['displayProperties']['name']
+            xur_items['icons'].append(self.__url + item_info['displayProperties']['icon'])
+            store_item['price'] = item['costs'][0]['quantity']
+            currency = self.destiny.decode_hash(item['costs'][0]['itemHash'],
+                                                'DestinyInventoryItemDefinition',
+                                                self.lang)
+            store_item['currency_icon'] = self.__url + currency['displayProperties']['icon']
+            store_item['currency_name'] = currency['displayProperties']['name']
+            xur_items['store'].append(store_item)
+        return xur_items
 
-
+    def get_eververse_items(self, token):
+        vendor = '3361454721'
+        text = self.destiny.api.get_vendor(token, 2, 4611686018446750060, 2305843009262034932, vendor, ['402'])
+        items = list(text['Response']['sales']['data'].values())
+        xur_items = {}
+        xur_items['error'] = 0
+        xur_items['store'] = []
+        xur_items['icons'] = []
+        for item in items:
+            store_item = {}
+            if item['saleStatus'] != 9999 and len(item['costs']) != 0 and item['costs'][0]['itemHash'] != 3147280338:
+                item_info = self.destiny.decode_hash(item['itemHash'], 'DestinyInventoryItemDefinition', self.lang)
+                store_item['name'] = '{}: {}'.format(item_info['itemTypeAndTierDisplayName'],
+                                                     item_info['displayProperties']['name'])
+                xur_items['icons'].append(self.__url + item_info['displayProperties']['icon'])
+                store_item['price'] = item['costs'][0]['quantity']
+                currency = self.destiny.decode_hash(item['costs'][0]['itemHash'],
+                                                    'DestinyInventoryItemDefinition',
+                                                    self.lang)
+                store_item['currency_icon'] = self.__url + currency['displayProperties']['icon']
+                store_item['currency_name'] = currency['displayProperties']['name']
+                xur_items['store'].append(store_item)
+        return xur_items
 
 
 

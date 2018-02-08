@@ -4,6 +4,10 @@ from telegram import ParseMode
 from emoji import emojize
 from modules.destiny_api import DestinyApi
 from modules.translate import Translate
+from modules.image_magic import ImageMagic
+from modules.dbase import DBase
+import datetime
+import json
 import configparser
 
 
@@ -13,13 +17,17 @@ class TelegramBot:
         self.config = configparser.ConfigParser()
         self.config.read("config.ini")
         self.translations = Translate()
-        self.destiny = DestinyApi(self.config['Bungie']['Key'], self.config['Bungie']['Lang'])
+        self.destiny = DestinyApi(self.config['Bungie'])
+        self.images = ImageMagic()
+        self.dbase = DBase(self.config['Mysql'])
 
         self.updater = Updater(self.config['Telegram']['Key'])
 
         self.updater.dispatcher.add_handler(CommandHandler('weekly', self.weekly))
         self.updater.dispatcher.add_handler(CommandHandler('trials', self.trials))
         self.updater.dispatcher.add_handler(CommandHandler('rewards', self.clan_rewards))
+        self.updater.dispatcher.add_handler(CommandHandler('xur', self.xur))
+        self.updater.dispatcher.add_handler(CommandHandler('eververse', self.eververse))
         self.updater.dispatcher.add_handler(CommandHandler('help', self.help))
 
         self.updater.start_polling()
@@ -69,6 +77,79 @@ class TelegramBot:
                          text=text,
                          parse_mode=ParseMode.MARKDOWN)
 
+    def xur(self, bot, update):
+        current_time = datetime.datetime.utcnow()
+        if (current_time.weekday() in [0, 5, 6]) or (current_time.weekday() == 1 and current_time.hour < 5) or (current_time.weekday() == 4 and current_time.hour > 5):
+            parsed_data = self.dbase.get_parsed_data('xur', current_time)
+            if parsed_data is None:
+                bot.send_message(chat_id=update.message.chat_id,
+                                 text='Подождите немного, нужно собрать данные',
+                                 parse_mode=ParseMode.MARKDOWN)
+                token = self.__token()
+                items = self.destiny.get_xur_items(token)
+                image_name = 'xur{}{}{}'.format(current_time.year,
+                                                      current_time.month,
+                                                      current_time.day,
+                                                      current_time.hour)
+                self.images.merge_images(items['icons'], image_name)
+                expire_date = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 1)
+                self.dbase.add_parsed_data('xur',
+                                           json.dumps(items, ensure_ascii=False).encode('utf8'),
+                                           current_time,
+                                           expire_date,
+                                           image_name)
+            else:
+                items = json.loads(parsed_data['json_data'])
+                image_name = parsed_data['image_name']
+            if items['error'] == 0:
+                text = ''
+                for item in items['store']:
+                    text = '{}\n\n*{}*\n'.format(text, item['name'])
+                    text = '{} Цена: {} {}'.format(text, item['price'], item['currency_name'])
+                bot.send_message(chat_id=update.message.chat_id,
+                                 text=text,
+                                 parse_mode=ParseMode.MARKDOWN)
+                bot.send_photo(chat_id=update.message.chat_id, photo=open('images/{}.jpg'.format(image_name), 'rb'))
+        else:
+            text = 'Xur еще не прилетел'
+            bot.send_message(chat_id=update.message.chat_id,
+                             text=text,
+                             parse_mode=ParseMode.MARKDOWN)
+
+    def eververse(self, bot, update):
+        current_time = datetime.datetime.utcnow()
+        parsed_data = self.dbase.get_parsed_data('eververse', current_time)
+        if parsed_data is None:
+            bot.send_message(chat_id=update.message.chat_id,
+                             text='Подождите немного, нужно собрать данные',
+                             parse_mode=ParseMode.MARKDOWN)
+            token = self.__token()
+            items = self.destiny.get_eververse_items(token)
+            image_name = 'eververse{}{}{}'.format(current_time.year,
+                                                  current_time.month,
+                                                  current_time.day,
+                                                  current_time.hour)
+            self.images.merge_images(items['icons'], image_name)
+            expire_date = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 1)
+            self.dbase.add_parsed_data('eververse',
+                                       json.dumps(items, ensure_ascii=False).encode('utf8'),
+                                       current_time,
+                                       expire_date,
+                                       image_name)
+        else:
+            items = json.loads(parsed_data['json_data'])
+            image_name = parsed_data['image_name']
+        if items['error'] == 0:
+            self.images.merge_images(items['icons'], 'eververse')
+            text = ''
+            for item in items['store']:
+                text = '{}\n\n*{}*\n'.format(text, item['name'])
+                text = '{} Цена: {} {}'.format(text, item['price'], item['currency_name'])
+            bot.send_message(chat_id=update.message.chat_id,
+                             text=text,
+                             parse_mode=ParseMode.MARKDOWN)
+            bot.send_photo(chat_id=update.message.chat_id, photo=open('images/{}.jpg'.format(image_name), 'rb'))
+
     def help(self, bot, update):
         text = '<b>/rewards</b> - информация о закрытых еженедельных клановых активностях\n' \
                '<b>/weekly</b> - информация о недельных заданиях\n' \
@@ -76,3 +157,26 @@ class TelegramBot:
         bot.send_message(chat_id=update.message.chat_id,
                          text=text,
                          parse_mode=ParseMode.HTML)
+
+    def __token(self):
+        user = self.dbase.get_user(self.config['Bungie']['User'])
+        current_time = datetime.datetime.now()
+        if user['access_token_expire'] > current_time:
+            return user['access_token']
+        else:
+            if user['refresh_token_expire'] > current_time:
+                info = self.destiny.get_token(user['refresh_token'])
+                user['access_token'] = info['access_token']
+                user['refresh_token'] = info['refresh_token']
+                user['access_token_expire'] = current_time + datetime.timedelta(seconds=info['expires_in']-60)
+                user['refresh_token_expire'] = current_time + datetime.timedelta(seconds=info['refresh_expires_in']-60)
+                self.dbase.update_user_tokens(user)
+                return user['access_token']
+            else:
+                print('No info')
+
+    def __get_next_weekday(self, date, weekday):
+        while date.weekday() != weekday:
+            date += datetime.timedelta(1)
+        return date
+

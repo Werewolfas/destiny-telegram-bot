@@ -8,3 +8,13 @@ Lang :
 # 2 - Playstation
 Platform : 2
 ClanId :
+#OAuth
+ClientId:
+ClientSecret:
+User:
+
+[Mysql]
+dbhost:
+dbname:
+dbuser:
+dbpass:
