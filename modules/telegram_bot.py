@@ -166,7 +166,7 @@ class TelegramBot:
         print(current_time)
         xur_info = {}
         if (current_time.weekday() in [0, 5, 6]) or (current_time.weekday() == 1 and current_time.hour < 17) or (
-                current_time.weekday() == 4 and current_time.hour > 17):
+                current_time.weekday() == 4 and current_time.hour >= 17):
             parsed_data = self.dbase.get_parsed_data('xur', current_time)
             if parsed_data is None:
                 token = self.__token()
