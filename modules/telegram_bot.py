@@ -20,9 +20,13 @@ class TelegramBot:
         self.destiny = DestinyApi(self.config['Bungie'])
         self.images = ImageMagic()
         self.dbase = DBase(self.config['Mysql'])
+        self.chat_id = self.config['Telegram']['ChatId']
 
         self.updater = Updater(self.config['Telegram']['Key'])
-
+        current_time = datetime.datetime.utcnow()
+        xur_time = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 4)
+        self.updater.job_queue.run_repeating(self.xur_scheduled, interval=datetime.timedelta(days=7),
+                                             first=xur_time)
         self.updater.dispatcher.add_handler(CommandHandler('weekly', self.weekly))
         self.updater.dispatcher.add_handler(CommandHandler('trials', self.trials))
         self.updater.dispatcher.add_handler(CommandHandler('rewards', self.clan_rewards))
@@ -78,43 +82,20 @@ class TelegramBot:
                          parse_mode=ParseMode.MARKDOWN)
 
     def xur(self, bot, update):
-        current_time = datetime.datetime.utcnow()
-        if (current_time.weekday() in [0, 5, 6]) or (current_time.weekday() == 1 and current_time.hour < 5) or (current_time.weekday() == 4 and current_time.hour > 5):
-            parsed_data = self.dbase.get_parsed_data('xur', current_time)
-            if parsed_data is None:
-                bot.send_message(chat_id=update.message.chat_id,
-                                 text='Подождите немного, нужно собрать данные',
-                                 parse_mode=ParseMode.MARKDOWN)
-                token = self.__token()
-                items = self.destiny.get_xur_items(token)
-                image_name = 'xur{}{}{}'.format(current_time.year,
-                                                      current_time.month,
-                                                      current_time.day,
-                                                      current_time.hour)
-                self.images.merge_images(items['icons'], image_name)
-                expire_date = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 1)
-                self.dbase.add_parsed_data('xur',
-                                           json.dumps(items, ensure_ascii=False).encode('utf8'),
-                                           current_time,
-                                           expire_date,
-                                           image_name)
-            else:
-                items = json.loads(parsed_data['json_data'])
-                image_name = parsed_data['image_name']
-            if items['error'] == 0:
-                text = ''
-                for item in items['store']:
-                    text = '{}\n\n*{}*\n'.format(text, item['name'])
-                    text = '{} Цена: {} {}'.format(text, item['price'], item['currency_name'])
-                bot.send_message(chat_id=update.message.chat_id,
-                                 text=text,
-                                 parse_mode=ParseMode.MARKDOWN)
-                bot.send_photo(chat_id=update.message.chat_id, photo=open('images/{}.jpg'.format(image_name), 'rb'))
-        else:
-            text = 'Xur еще не прилетел'
-            bot.send_message(chat_id=update.message.chat_id,
-                             text=text,
-                             parse_mode=ParseMode.MARKDOWN)
+        xur_info = self.__get_xur_info()
+        bot.send_message(chat_id=update.message.chat_id,
+                         text=xur_info['text'],
+                         parse_mode=ParseMode.MARKDOWN)
+        if xur_info['image'] != '':
+            bot.send_photo(chat_id=update.message.chat_id, photo=open('images/{}.jpg'.format(xur_info['image']), 'rb'))
+
+    def xur_scheduled(self, bot, update):
+        xur_info = self.__get_xur_info()
+        bot.send_message(chat_id=self.chat_id,
+                         text=xur_info['text'],
+                         parse_mode=ParseMode.MARKDOWN)
+        if xur_info['image'] != '':
+            bot.send_photo(chat_id=self.chat_id, photo=open('images/{}.jpg'.format(xur_info['image']), 'rb'))
 
     def eververse(self, bot, update):
         current_time = datetime.datetime.utcnow()
@@ -179,4 +160,39 @@ class TelegramBot:
         while date.weekday() != weekday:
             date += datetime.timedelta(1)
         return date
+
+    def __get_xur_info(self):
+        current_time = datetime.datetime.utcnow()
+        xur_info = {}
+        if (current_time.weekday() in [0, 5, 6]) or (current_time.weekday() == 1 and current_time.hour < 5) or (
+                current_time.weekday() == 4 and current_time.hour > 5):
+            parsed_data = self.dbase.get_parsed_data('xur', current_time)
+            if parsed_data is None:
+                token = self.__token()
+                items = self.destiny.get_xur_items(token)
+                image_name = 'xur{}{}{}'.format(current_time.year,
+                                                current_time.month,
+                                                current_time.day,
+                                                current_time.hour)
+                self.images.merge_images(items['icons'], image_name)
+                expire_date = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 1)
+                self.dbase.add_parsed_data('xur',
+                                           json.dumps(items, ensure_ascii=False).encode('utf8'),
+                                           current_time,
+                                           expire_date,
+                                           image_name)
+            else:
+                items = json.loads(parsed_data['json_data'])
+                image_name = parsed_data['image_name']
+            if items['error'] == 0:
+                text = ''
+                for item in items['store']:
+                    text = '{}\n\n*{}*\n'.format(text, item['name'])
+                    text = '{} Цена: {} {}'.format(text, item['price'], item['currency_name'])
+                xur_info['text'] = text
+                xur_info['image'] = image_name
+        else:
+            xur_info['text'] = 'Xur еще не прилетел'
+            xur_info['image'] = ''
+        return xur_info
 
