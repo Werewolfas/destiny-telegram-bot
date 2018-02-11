@@ -9,11 +9,14 @@ from modules.dbase import DBase
 import datetime
 import json
 import configparser
+import logging
 
 
 class TelegramBot:
 
     def __init__(self):
+        logging.basicConfig(level=logging.WARNING,
+                            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         self.config = configparser.ConfigParser()
         self.config.read("config.ini")
         self.translations = Translate()
