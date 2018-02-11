@@ -84,6 +84,14 @@ class DestinyApi:
             store_item = {}
             item_info = self.destiny.decode_hash(item['itemHash'], 'DestinyInventoryItemDefinition', self.lang)
             store_item['name'] = item_info['displayProperties']['name']
+            if 'itemTypeDisplayName' in item_info:
+                store_item['description'] = item_info['itemTypeDisplayName']
+            else:
+                store_item['description'] = ''
+            if 'classType' in item_info:
+                store_item['class'] = item_info['classType']
+            else:
+                store_item['class'] = 3
             xur_items['icons'].append(self.__url + item_info['displayProperties']['icon'])
             store_item['price'] = item['costs'][0]['quantity']
             currency = self.destiny.decode_hash(item['costs'][0]['itemHash'],

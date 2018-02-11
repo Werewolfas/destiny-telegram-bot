@@ -189,6 +189,11 @@ class TelegramBot:
                 text = ''
                 for item in items['store']:
                     text = '{}\n\n*{}*\n'.format(text, item['name'])
+                    if item['description'] != '':
+                        text = '{} {}'.format(text, item['description'])
+                        if item['class'] != 3:
+                            text = '{}. {}'.format(text, self.translations.get_game_class(item['class']))
+                        text = '{}\n'.format(text)
                     text = '{} Цена: {} {}'.format(text, item['price'], item['currency_name'])
                 xur_info['text'] = text
                 xur_info['image'] = image_name
