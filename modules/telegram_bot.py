@@ -28,8 +28,14 @@ class TelegramBot:
         self.updater = Updater(self.config['Telegram']['Key'])
         current_time = datetime.datetime.utcnow()
         xur_time = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 4)
+        eververse_time = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=15), 1)
+        weekly_time = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 1)
         self.updater.job_queue.run_repeating(self.xur_scheduled, interval=datetime.timedelta(days=7),
                                              first=xur_time)
+        self.updater.job_queue.run_repeating(self.eververse_scheduled, interval=datetime.timedelta(days=7),
+                                             first=eververse_time)
+        self.updater.job_queue.run_repeating(self.weekly_scheduled, interval=datetime.timedelta(days=7),
+                                             first=weekly_time)
         self.updater.dispatcher.add_handler(CommandHandler('weekly', self.weekly))
         self.updater.dispatcher.add_handler(CommandHandler('trials', self.trials))
         self.updater.dispatcher.add_handler(CommandHandler('rewards', self.clan_rewards))
@@ -41,13 +47,14 @@ class TelegramBot:
         self.updater.idle()
 
     def weekly(self, bot, update):
-        weekly = self.destiny.get_nightfall()
-        text = '*{}*\n\n'.format(weekly['public_event'])
-        text = '{}*{}* \n{} \n*Модификаторы:* \n'.format(text, weekly['name'], weekly['description'])
-        for mod in weekly['mods']:
-            text = '{} – {}. {}\n'.format(text, mod['name'], mod['description'])
-        text = '{}\n[\u200B]({})'.format(text, weekly['screen'])
+        text = self.__get_weekly()
         bot.send_message(chat_id=update.message.chat_id,
+                         text=text,
+                         parse_mode=ParseMode.MARKDOWN)
+
+    def weekly_scheduled(self, bot, update):
+        text = self.__get_weekly()
+        bot.send_message(chat_id=self.chat_id,
                          text=text,
                          parse_mode=ParseMode.MARKDOWN)
 
@@ -101,38 +108,20 @@ class TelegramBot:
             bot.send_photo(chat_id=self.chat_id, photo=open('images/{}.jpg'.format(xur_info['image']), 'rb'))
 
     def eververse(self, bot, update):
-        current_time = datetime.datetime.utcnow()
-        parsed_data = self.dbase.get_parsed_data('eververse', current_time)
-        if parsed_data is None:
-            bot.send_message(chat_id=update.message.chat_id,
-                             text='Подождите немного, нужно собрать данные',
-                             parse_mode=ParseMode.MARKDOWN)
-            token = self.__token()
-            items = self.destiny.get_eververse_items(token)
-            image_name = 'eververse{}{}{}'.format(current_time.year,
-                                                  current_time.month,
-                                                  current_time.day,
-                                                  current_time.hour)
-            self.images.merge_images(items['icons'], image_name)
-            expire_date = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 1)
-            self.dbase.add_parsed_data('eververse',
-                                       json.dumps(items, ensure_ascii=False).encode('utf8'),
-                                       current_time,
-                                       expire_date,
-                                       image_name)
-        else:
-            items = json.loads(parsed_data['json_data'])
-            image_name = parsed_data['image_name']
-        if items['error'] == 0:
-            self.images.merge_images(items['icons'], 'eververse')
-            text = ''
-            for item in items['store']:
-                text = '{}\n\n*{}*\n'.format(text, item['name'])
-                text = '{} Цена: {} {}'.format(text, item['price'], item['currency_name'])
-            bot.send_message(chat_id=update.message.chat_id,
-                             text=text,
-                             parse_mode=ParseMode.MARKDOWN)
-            bot.send_photo(chat_id=update.message.chat_id, photo=open('images/{}.jpg'.format(image_name), 'rb'))
+        info = self.__get_eververse()
+        bot.send_message(chat_id=update.message.chat_id,
+                         text=info['text'],
+                         parse_mode=ParseMode.MARKDOWN)
+        if info['image'] != '':
+            bot.send_photo(chat_id=update.message.chat_id, photo=open('images/{}.jpg'.format(info['image']), 'rb'))
+
+    def eververse_scheduled(self, bot, update):
+        info = self.__get_eververse()
+        bot.send_message(chat_id=self.chat_id,
+                         text=info['text'],
+                         parse_mode=ParseMode.MARKDOWN)
+        if info['image'] != '':
+            bot.send_photo(chat_id=self.chat_id, photo=open('images/{}.jpg'.format(info['image']), 'rb'))
 
     def help(self, bot, update):
         text = '<b>/rewards</b> - информация о закрытых еженедельных клановых активностях\n' \
@@ -204,4 +193,45 @@ class TelegramBot:
             xur_info['text'] = 'Xur еще не прилетел'
             xur_info['image'] = ''
         return xur_info
+
+    def __get_eververse(self):
+        current_time = datetime.datetime.utcnow()
+        parsed_data = self.dbase.get_parsed_data('eververse', current_time)
+        eververse_info = {}
+        if parsed_data is None:
+            token = self.__token()
+            items = self.destiny.get_eververse_items(token)
+            image_name = 'eververse{}{}{}'.format(current_time.year,
+                                                  current_time.month,
+                                                  current_time.day,
+                                                  current_time.hour)
+            self.images.merge_images(items['icons'], image_name)
+            expire_date = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 1)
+            self.dbase.add_parsed_data('eververse',
+                                       json.dumps(items, ensure_ascii=False).encode('utf8'),
+                                       current_time,
+                                       expire_date,
+                                       image_name)
+        else:
+            items = json.loads(parsed_data['json_data'])
+            image_name = parsed_data['image_name']
+        if items['error'] == 0:
+            self.images.merge_images(items['icons'], 'eververse')
+            text = ''
+            for item in items['store']:
+                text = '{}\n\n*{}*\n'.format(text, item['name'])
+                text = '{} Цена: {} {}'.format(text, item['price'], item['currency_name'])
+
+            eververse_info['text'] = text
+            eververse_info['image'] = image_name
+        return eververse_info
+
+    def __get_weekly(self):
+        weekly = self.destiny.get_nightfall()
+        text = '*{}*\n\n'.format(weekly['public_event'])
+        text = '{}*{}* \n{} \n*Модификаторы:* \n'.format(text, weekly['name'], weekly['description'])
+        for mod in weekly['mods']:
+            text = '{} – {}. {}\n'.format(text, mod['name'], mod['description'])
+        return '{}\n[\u200B]({})'.format(text, weekly['screen'])
+
 
