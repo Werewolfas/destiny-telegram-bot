@@ -7,7 +7,9 @@ class Translate:
         'Nightfall': 'Сумрачный налет',
         'Raid': 'Рейд',
         'Trials of the Nine': 'Испытания Девяти',
-        'Last Week\'s Clan Rewards': 'Награды клана за прошлую неделю'
+        'Last Week\'s Clan Rewards': 'Награды клана за прошлую неделю',
+        'This system is temporarily disabled for maintenance.':
+            'Система временно отключена для технического обслуживания'
     }
 
     classes = {
