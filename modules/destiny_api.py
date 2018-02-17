@@ -35,10 +35,10 @@ class DestinyApi:
         return milestones
 
     def get_trials_of_nine(self):
-        activities = self.destiny.api.get_public_milestones()['Response']
+        activities = self.destiny.api.get_public_milestones()
         trials = {}
         try:
-            activity = activities['3551755444']['availableQuests'][0]
+            activity = activities['Response']['3551755444']['availableQuests'][0]
             trials['error'] = activities['ErrorCode']
             trials['name'] = self.destiny.decode_hash(activity['questItemHash'],
                                                       'DestinyInventoryItemDefinition',
