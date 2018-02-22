@@ -203,6 +203,7 @@ class TelegramBot:
         parsed_data = self.dbase.get_parsed_data('eververse', current_time)
         eververse_info = {}
         image_name = ''
+        text = ''
         if parsed_data is None:
             token = self.__token()
             items = self.destiny.get_eververse_items(token)
@@ -213,22 +214,22 @@ class TelegramBot:
                                                       current_time.hour)
                 self.images.merge_images(items['icons'], image_name)
                 expire_date = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 1)
-                self.dbase.add_parsed_data('eververse',
-                                           json.dumps(items, ensure_ascii=False).encode('utf8'),
-                                           current_time,
-                                           expire_date,
-                                           image_name)
+                if items['error'] == 1:
+                    for item in items['store']:
+                        text = '{}\n\n*{}*\n'.format(text, item['name'])
+                        text = '{} Цена: {} {}'.format(text, item['price'], item['currency_name'])
+                    self.dbase.add_parsed_data('eververse',
+                                               json.dumps(items, ensure_ascii=False).encode('utf8'),
+                                               text,
+                                               current_time,
+                                               expire_date,
+                                               image_name)
         else:
             items = json.loads(parsed_data['json_data'])
+            text = parsed_data['text_data']
             image_name = parsed_data['image_name']
         eververse_info['error'] = items['error']
         if items['error'] == 1:
-            self.images.merge_images(items['icons'], 'eververse')
-            text = ''
-            for item in items['store']:
-                text = '{}\n\n*{}*\n'.format(text, item['name'])
-                text = '{} Цена: {} {}'.format(text, item['price'], item['currency_name'])
-
             eververse_info['text'] = text
             eververse_info['image'] = image_name
         else:

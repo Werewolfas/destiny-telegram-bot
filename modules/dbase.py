@@ -55,16 +55,16 @@ class DBase:
         finally:
             connection.close()
 
-    def add_parsed_data(self, type, json_data, added, expire, image_name):
+    def add_parsed_data(self, type, json_data, text_data, added, expire, image_name):
         connection = self.__make_connection()
         try:
             with connection.cursor() as cursor:
                 sql = """
                       INSERT INTO parsed_data
-                      (type, json_data, added, expire, image_name)
-                      VALUES (%s, %s, %s, %s, %s)    
+                      (type, json_data, text_data, added, expire, image_name)
+                      VALUES (%s, %s, %s, %s, %s, %s)    
                       """
-                cursor.execute(sql, (type, json_data, added, expire, image_name))
+                cursor.execute(sql, (type, json_data, text_data, added, expire, image_name))
             connection.commit()
         finally:
             connection.close()

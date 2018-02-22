@@ -6,3 +6,7 @@ modules/__pycache__/
 config\.ini
 
 \.idea/
+
+images/
+
+\.vscode/
