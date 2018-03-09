@@ -153,6 +153,8 @@ class TelegramBot:
                 print('No info')
 
     def __get_next_weekday(self, date, weekday):
+        if date.weekday() == weekday:
+            date += datetime.timedelta(1)
         while date.weekday() != weekday:
             date += datetime.timedelta(1)
         return date
@@ -172,8 +174,6 @@ class TelegramBot:
                                                 current_time.day,
                                                 current_time.hour)
                 self.images.merge_images(items['icons'], image_name)
-                if current_time.weekday() == 4:
-                    current_time.replace(day=5)
                 expire_date = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 1)
                 self.dbase.add_parsed_data('xur',
                                            json.dumps(items, ensure_ascii=False).encode('utf8'),
@@ -216,8 +216,6 @@ class TelegramBot:
                                                       current_time.day,
                                                       current_time.hour)
                 self.images.merge_images(items['icons'], image_name)
-                if current_time.weekday() == 1:
-                    current_time.replace(day=2)
                 expire_date = self.__get_next_weekday(current_time.replace(hour=17, minute=2, second=0), 1)
                 if items['error'] == 1:
                     for item in items['store']:
