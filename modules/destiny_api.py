@@ -24,10 +24,6 @@ class DestinyApi:
                 milestones['name'] = nightfall_info['displayProperties']['name']
                 milestones['description'] = nightfall_info['displayProperties']['description']
                 milestones['screen'] = self.__url + nightfall_info['pgcrImage']
-                milestones['mods'] = []
-                modifier = self.destiny.decode_hash(quest['activity']['activityModeHash'], 'DestinyActivityModeDefinition', self.lang)
-                milestones['mods'].append({'name': modifier['displayProperties']['name'],
-                                           'description': modifier['displayProperties']['description']})
         else:
             milestones['error'] = activities_response['ErrorCode']
             milestones['errorMessage'] = activities_response['Message']

@@ -161,7 +161,6 @@ class TelegramBot:
 
     def __get_xur_info(self):
         current_time = datetime.datetime.utcnow()
-        print(current_time)
         xur_info = {}
         if (current_time.weekday() in [0, 5, 6]) or (current_time.weekday() == 1 and current_time.hour < 17) or (
                 current_time.weekday() == 4 and current_time.hour >= 17):
@@ -245,9 +244,7 @@ class TelegramBot:
         information = {}
         if weekly['error'] == 1:
             text = '*{}*\n\n'.format(weekly['public_event'])
-            text = '{}*{}* \n{} \n*Модификаторы:* \n'.format(text, weekly['name'], weekly['description'])
-            for mod in weekly['mods']:
-                text = '{} – {}. {}\n'.format(text, mod['name'], mod['description'])
+            text = '{}*{}* \n{}'.format(text, weekly['name'], weekly['description'])
             information['text'] = '{}\n[\u200B]({})'.format(text, weekly['screen'])
         else:
             information['text'] = self.translations.make_translation(weekly['errorMessage'])
